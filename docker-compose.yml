@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gb_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: golang_gin_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      # Auto-load the schema on first init
+      - ./db/database.sql:/docker-entrypoint-initdb.d/01_database.sql:ro
+
+  redis:
+    image: redis:7-alpine
+    container_name: gb_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  app:
+    image: golang:1.24-alpine
+    container_name: gb_app
+    working_dir: /app
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./:/app
+    env_file:
+      - ./docker/app.env
+    command: sh -c "cp docker/app.env .env && go mod download && go run main.go"
+    ports:
+      - "9000:9000"
+
+  # Optional: Web GUI for PostgreSQL
+  pgadmin:
+    image: dpage/pgadmin4:8.13
+    container_name: gb_pgadmin
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  pg_data:
+  redis_data:
+  pgadmin_data:
+
+
